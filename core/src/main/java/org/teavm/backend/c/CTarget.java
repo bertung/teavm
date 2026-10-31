@@ -83,6 +83,7 @@ import org.teavm.backend.c.intrinsic.ShadowStackIntrinsic;
 import org.teavm.backend.c.intrinsic.StringIntrinsic;
 import org.teavm.backend.c.intrinsic.StringsIntrinsic;
 import org.teavm.backend.c.intrinsic.StructureIntrinsic;
+import org.teavm.backend.c.intrinsic.SystemIntrinsic;
 import org.teavm.backend.c.intrinsic.reflection.AnnotationConstructorIntrinsic;
 import org.teavm.backend.c.intrinsic.reflection.AnnotationDataIntrinsic;
 import org.teavm.backend.c.intrinsic.reflection.AnnotationInfoIntrinsic;
@@ -449,6 +450,7 @@ public class CTarget implements TeaVMTarget, TeaVMCHost {
         intrinsics.add(new FiberIntrinsic());
         intrinsics.add(new LongIntrinsic());
         intrinsics.add(new IntegerIntrinsic());
+        intrinsics.add(new SystemIntrinsic());
         intrinsics.add(new StringsIntrinsic());
         intrinsics.add(new ConsoleIntrinsic());
         intrinsics.add(new CResourcesIntrinsic());

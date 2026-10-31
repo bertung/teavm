@@ -441,6 +441,7 @@ public class JavaScriptTarget implements TeaVMTarget, TeaVMJavaScriptHost {
         renderer.renderStringConstants();
         renderer.renderCompatibilityStubs();
         emitMainMethod(classes, rememberingWriter);
+        emitRuntimeApi(rememberingWriter);
 
         for (var listener : rendererListeners) {
             listener.complete();
@@ -497,6 +498,19 @@ public class JavaScriptTarget implements TeaVMTarget, TeaVMJavaScriptHost {
 
         int totalSize = sourceWriter.getOffset() - start;
         printStats(sourceWriter, totalSize);
+    }
+
+    private void emitRuntimeApi(SourceWriter writer) {
+        var exitMethod = controller.getDependencyInfo().getMethod(new MethodReference(System.class, "exit",
+                int.class, void.class));
+        if (exitMethod == null || !exitMethod.isUsed()) {
+            return;
+        }
+        var alias = "$rt_export_teavmRuntime";
+        writer.startVariableDeclaration().appendFunction(alias)
+                .appendFunction("$rt_runtimeApi").append("()").endDeclaration();
+        exports.add(new ExportedDeclaration(w -> w.appendFunction(alias),
+                n -> n.functionName(alias), "teavmRuntime"));
     }
 
     private void emitMainMethod(ClassReaderSource classes, SourceWriter writer) {
