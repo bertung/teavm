@@ -726,6 +726,26 @@ public class VMTest {
         }
     }
 
+    @Test
+    public void constantIndexBeyondConstantArraySizeThrows() {
+        var array = new int[2];
+        var caught = false;
+        try {
+            array[2] = 1;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            caught = true;
+        }
+        assertTrue(caught, "Exception was not caught (upper bound)");
+        
+        caught = false;
+        try {
+            array[-1] = 1;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            caught = true;
+        }
+        assertTrue(caught, "Exception was not caught (lower bound)");
+    }
+
     enum InitInHandler {
         A,
         B

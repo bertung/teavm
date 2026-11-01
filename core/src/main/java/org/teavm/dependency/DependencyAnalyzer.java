@@ -270,7 +270,7 @@ public abstract class DependencyAnalyzer implements DependencyInfo {
             MethodHolder method = new MethodHolder(methodRef.getDescriptor());
             method.getModifiers().add(ElementModifier.STATIC);
             method.setProgram(ProgramUtils.copy(program));
-            new UnreachableBasicBlockEliminator().optimize(program);
+            new UnreachableBasicBlockEliminator().optimize(program, methodRef.parameterCount());
             cls.addMethod(method);
         } else {
             MethodDependency dep = getMethod(methodRef);
@@ -287,7 +287,7 @@ public abstract class DependencyAnalyzer implements DependencyInfo {
             }
             method.getModifiers().remove(ElementModifier.NATIVE);
             method.setProgram(ProgramUtils.copy(program));
-            new UnreachableBasicBlockEliminator().optimize(method.getProgram());
+            new UnreachableBasicBlockEliminator().optimize(method.getProgram(), method.parameterCount());
 
             dep.used = false;
             lock(dep, false);

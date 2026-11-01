@@ -146,10 +146,14 @@ public class JavaScriptTarget implements TeaVMTarget, TeaVMJavaScriptHost {
 
     @Override
     public List<ClassHolderTransformer> getTransformers() {
-        return List.of(
+        var result = new ArrayList<>(List.of(
                 new WeakReferenceTransformer(),
                 new ReferenceQueueTransformer()
-        );
+        ));
+        if (strict) {
+            result.add(boundCheckInsertion);
+        }
+        return result;
     }
 
     @Override
@@ -364,9 +368,6 @@ public class JavaScriptTarget implements TeaVMTarget, TeaVMJavaScriptHost {
 
     @Override
     public void beforeOptimizations(Program program, MethodReader method) {
-        if (strict) {
-            boundCheckInsertion.transformProgram(program, method.getReference());
-        }
     }
 
     @Override

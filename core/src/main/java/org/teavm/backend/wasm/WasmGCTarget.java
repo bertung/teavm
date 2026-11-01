@@ -207,12 +207,16 @@ public class WasmGCTarget implements TeaVMTarget, TeaVMWasmGCHost {
 
     @Override
     public List<ClassHolderTransformer> getTransformers() {
-        return List.of(
+        var result = new ArrayList<>(List.of(
                 new BaseClassesTransformation(),
                 new ClassLoaderResourceTransformation(),
                 new ReferenceQueueTransformation(),
                 entryPointTransformation
-        );
+        ));
+        if (strict) {
+            result.add(boundCheckInsertion);
+        }
+        return result;
     }
 
     @Override
@@ -243,9 +247,6 @@ public class WasmGCTarget implements TeaVMTarget, TeaVMWasmGCHost {
 
     @Override
     public void beforeOptimizations(Program program, MethodReader method) {
-        if (strict) {
-            boundCheckInsertion.transformProgram(program, method.getReference());
-        }
     }
 
     @Override

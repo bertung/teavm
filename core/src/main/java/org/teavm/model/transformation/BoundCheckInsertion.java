@@ -21,6 +21,9 @@ import com.carrotsearch.hppc.IntSet;
 import com.carrotsearch.hppc.cursors.IntCursor;
 import java.util.Arrays;
 import org.teavm.model.BasicBlock;
+import org.teavm.model.ClassHolder;
+import org.teavm.model.ClassHolderTransformer;
+import org.teavm.model.ClassHolderTransformerContext;
 import org.teavm.model.Instruction;
 import org.teavm.model.MethodReference;
 import org.teavm.model.Program;
@@ -34,18 +37,32 @@ import org.teavm.model.instructions.BinaryOperation;
 import org.teavm.model.instructions.BoundCheckInstruction;
 import org.teavm.model.instructions.BranchingInstruction;
 import org.teavm.model.instructions.ConstructArrayInstruction;
+import org.teavm.model.instructions.ConstructInstruction;
 import org.teavm.model.instructions.GetElementInstruction;
 import org.teavm.model.instructions.IntegerConstantInstruction;
+import org.teavm.model.instructions.InvocationType;
+import org.teavm.model.instructions.InvokeInstruction;
 import org.teavm.model.instructions.JumpInstruction;
 import org.teavm.model.instructions.NullCheckInstruction;
 import org.teavm.model.instructions.NumericOperandType;
 import org.teavm.model.instructions.PutElementInstruction;
+import org.teavm.model.instructions.RaiseInstruction;
 import org.teavm.model.instructions.UnwrapArrayInstruction;
+import org.teavm.model.optimization.UnreachableBasicBlockEliminator;
 import org.teavm.model.util.DominatorWalker;
 import org.teavm.model.util.DominatorWalkerCallback;
 import org.teavm.model.util.PhiUpdater;
 
-public class BoundCheckInsertion {
+public class BoundCheckInsertion implements ClassHolderTransformer {
+    @Override
+    public void transformClass(ClassHolder cls, ClassHolderTransformerContext context) {
+        for (var method : cls.getMethods()) {
+            if (method.getProgram() != null) {
+                transformProgram(method.getProgram(), method.getReference());
+            }
+        }
+    }
+
     public void transformProgram(Program program, MethodReference methodReference) {
         if (program.basicBlockCount() == 0) {
             return;
@@ -53,6 +70,9 @@ public class BoundCheckInsertion {
 
         InsertionVisitor visitor = new InsertionVisitor(program.variableCount());
         new DominatorWalker(program).walk(visitor);
+        if (visitor.cfgChanged) {
+            new UnreachableBasicBlockEliminator().optimize(program, methodReference.parameterCount());
+        }
         if (visitor.changed) {
             new PhiUpdater().updatePhis(program, methodReference.parameterCount() + 1);
         }
@@ -62,6 +82,7 @@ public class BoundCheckInsertion {
             implements DominatorWalkerCallback<BlockBounds> {
         BlockBounds bounds;
         boolean changed;
+        boolean cfgChanged;
         private boolean[] isConstant;
         private boolean[] isConstantSizedArray;
         private int[] constantValue;
@@ -110,8 +131,13 @@ public class BoundCheckInsertion {
                 }
             }
 
-            for (Instruction instruction : block) {
-                instruction.acceptVisitor(this);
+            Instruction next;
+            for (var insn = block.getFirstInstruction(); insn != null; insn = next) {
+                next = insn.getNext();
+                insn.acceptVisitor(this);
+                if (next != null && next.getBasicBlock() == null) {
+                    break;
+                }
             }
 
             bounds.comparisonMode = comparisonMode;
@@ -358,6 +384,7 @@ public class BoundCheckInsertion {
         @Override
         public void visit(NullCheckInstruction insn) {
             isConstantSizedArray[index(insn.getReceiver())] = isConstantSizedArray[index(insn.getValue())];
+            constantValue[index(insn.getReceiver())] = constantValue[index(insn.getValue())];
         }
 
         private void assign(Variable from, Variable to) {
@@ -379,8 +406,11 @@ public class BoundCheckInsertion {
             boolean upper = true;
             int index = index(indexVar);
             int array = index(arrayVar);
-            if (isConstant[index]) {
-                if (isConstantSizedArray[array]) {
+            var error = false;
+            if (isConstant[index] && isConstantSizedArray[array]) {
+                if (constantValue[index] >= constantValue[array]) {
+                    error = true;
+                } else {
                     upper = false;
                 }
             }
@@ -393,6 +423,8 @@ public class BoundCheckInsertion {
 
             if ((isConstant[index] && constantValue[index] >= 0) || nonNegative[index]) {
                 lower = false;
+            } else if (isConstant[index] && constantValue[index] < 0) {
+                error = true;
             }
 
             if (upper) {
@@ -400,7 +432,29 @@ public class BoundCheckInsertion {
             }
             markAsNonNegative(index);
 
-            if (lower || upper) {
+            if (error) {
+                var constructInsn = new ConstructInstruction();
+                constructInsn.setType(ArrayIndexOutOfBoundsException.class.getName());
+                constructInsn.setReceiver(instruction.getProgram().createVariable());
+                constructInsn.setLocation(instruction.getLocation());
+                instruction.insertPrevious(constructInsn);
+
+                var initInsn = new InvokeInstruction();
+                initInsn.setType(InvocationType.SPECIAL);
+                initInsn.setMethod(new MethodReference(ArrayIndexOutOfBoundsException.class, "<init>", void.class));
+                initInsn.setInstance(constructInsn.getReceiver());
+                instruction.insertPrevious(initInsn);
+
+                var throwInsn = new RaiseInstruction();
+                throwInsn.setException(constructInsn.getReceiver());
+                instruction.insertPrevious(throwInsn);
+
+                while (instruction.getNext() != null) {
+                    instruction.getNext().delete();
+                }
+                instruction.delete();
+                cfgChanged = true;
+            } else if (lower || upper) {
                 BoundCheckInstruction boundCheck = new BoundCheckInstruction();
                 if (lower) {
                     boundCheck.setLower(true);
