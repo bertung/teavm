@@ -146,14 +146,10 @@ public class JavaScriptTarget implements TeaVMTarget, TeaVMJavaScriptHost {
 
     @Override
     public List<ClassHolderTransformer> getTransformers() {
-        var result = new ArrayList<>(List.of(
+        return List.of(
                 new WeakReferenceTransformer(),
                 new ReferenceQueueTransformer()
-        ));
-        if (strict) {
-            result.add(boundCheckInsertion);
-        }
-        return result;
+        );
     }
 
     @Override
@@ -287,11 +283,7 @@ public class JavaScriptTarget implements TeaVMTarget, TeaVMJavaScriptHost {
         exceptionCons.use();
 
         if (strict) {
-            exceptionCons = dependencyAnalyzer.linkMethod(new MethodReference(
-                    ArrayIndexOutOfBoundsException.class, "<init>", void.class));
-            exceptionCons.getVariable(0).propagate(dependencyAnalyzer.getClassType(
-                    ArrayIndexOutOfBoundsException.class.getName()));
-            exceptionCons.use();
+            BoundCheckInsertion.contributeDependencies(dependencyAnalyzer);
 
             exceptionCons = dependencyAnalyzer.linkMethod(new MethodReference(
                     NullPointerException.class, "<init>", void.class));
@@ -368,6 +360,9 @@ public class JavaScriptTarget implements TeaVMTarget, TeaVMJavaScriptHost {
 
     @Override
     public void beforeOptimizations(Program program, MethodReader method) {
+        if (strict) {
+            boundCheckInsertion.transformProgram(program, method.getReference());
+        }
     }
 
     @Override

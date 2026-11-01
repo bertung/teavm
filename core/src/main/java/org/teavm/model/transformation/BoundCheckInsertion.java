@@ -20,10 +20,8 @@ import com.carrotsearch.hppc.IntHashSet;
 import com.carrotsearch.hppc.IntSet;
 import com.carrotsearch.hppc.cursors.IntCursor;
 import java.util.Arrays;
+import org.teavm.dependency.DependencyAnalyzer;
 import org.teavm.model.BasicBlock;
-import org.teavm.model.ClassHolder;
-import org.teavm.model.ClassHolderTransformer;
-import org.teavm.model.ClassHolderTransformerContext;
 import org.teavm.model.Instruction;
 import org.teavm.model.MethodReference;
 import org.teavm.model.Program;
@@ -53,14 +51,12 @@ import org.teavm.model.util.DominatorWalker;
 import org.teavm.model.util.DominatorWalkerCallback;
 import org.teavm.model.util.PhiUpdater;
 
-public class BoundCheckInsertion implements ClassHolderTransformer {
-    @Override
-    public void transformClass(ClassHolder cls, ClassHolderTransformerContext context) {
-        for (var method : cls.getMethods()) {
-            if (method.getProgram() != null) {
-                transformProgram(method.getProgram(), method.getReference());
-            }
-        }
+public class BoundCheckInsertion {
+    private static final MethodReference AIOOBE_CONSTRUCTOR = new MethodReference(
+            ArrayIndexOutOfBoundsException.class, "<init>", void.class);
+
+    public static void contributeDependencies(DependencyAnalyzer dependencyAnalyzer) {
+        dependencyAnalyzer.setArrayBoundsChecked(true);
     }
 
     public void transformProgram(Program program, MethodReference methodReference) {
@@ -441,7 +437,7 @@ public class BoundCheckInsertion implements ClassHolderTransformer {
 
                 var initInsn = new InvokeInstruction();
                 initInsn.setType(InvocationType.SPECIAL);
-                initInsn.setMethod(new MethodReference(ArrayIndexOutOfBoundsException.class, "<init>", void.class));
+                initInsn.setMethod(AIOOBE_CONSTRUCTOR);
                 initInsn.setInstance(constructInsn.getReceiver());
                 instruction.insertPrevious(initInsn);
 

@@ -270,7 +270,6 @@ public class CTarget implements TeaVMTarget, TeaVMCHost {
         transformers.add(new CFileSystemTransformer());
         transformers.add(new SynchronizedMethodTransformer());
         transformers.add(new ClassLoaderCResourceTransformation());
-        transformers.add(boundCheckInsertion);
         return transformers;
     }
 
@@ -315,6 +314,7 @@ public class CTarget implements TeaVMTarget, TeaVMCHost {
 
     @Override
     public void contributeDependencies(DependencyAnalyzer dependencyAnalyzer) {
+        BoundCheckInsertion.contributeDependencies(dependencyAnalyzer);
         dependencyAnalyzer.linkMethod(new MethodReference(Class.class, "createClass", ClassInfo.class, Class.class))
                 .use();
 
@@ -409,6 +409,7 @@ public class CTarget implements TeaVMTarget, TeaVMCHost {
 
     @Override
     public void beforeOptimizations(Program program, MethodReader method) {
+        boundCheckInsertion.transformProgram(program, method.getReference());
     }
 
     @Override

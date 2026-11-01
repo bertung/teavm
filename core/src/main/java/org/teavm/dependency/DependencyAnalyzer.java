@@ -109,6 +109,7 @@ public abstract class DependencyAnalyzer implements DependencyInfo {
     private ClassHierarchy classHierarchy;
     IncrementalCache incrementalCache = new IncrementalCache();
     boolean asyncSupported;
+    boolean arrayBoundsChecked;
     private ReferenceCache referenceCache;
     private Set<String> generatedClassNames = new HashSet<>();
     DependencyType classType;
@@ -167,6 +168,10 @@ public abstract class DependencyAnalyzer implements DependencyInfo {
 
     public void setAsyncSupported(boolean asyncSupported) {
         this.asyncSupported = asyncSupported;
+    }
+
+    public void setArrayBoundsChecked(boolean arrayBoundsChecked) {
+        this.arrayBoundsChecked = arrayBoundsChecked;
     }
 
     public DependencyAgent getAgent() {

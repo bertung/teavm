@@ -207,16 +207,12 @@ public class WasmGCTarget implements TeaVMTarget, TeaVMWasmGCHost {
 
     @Override
     public List<ClassHolderTransformer> getTransformers() {
-        var result = new ArrayList<>(List.of(
+        return List.of(
                 new BaseClassesTransformation(),
                 new ClassLoaderResourceTransformation(),
                 new ReferenceQueueTransformation(),
                 entryPointTransformation
-        ));
-        if (strict) {
-            result.add(boundCheckInsertion);
-        }
-        return result;
+        );
     }
 
     @Override
@@ -224,6 +220,9 @@ public class WasmGCTarget implements TeaVMTarget, TeaVMWasmGCHost {
         var deps = new WasmGCDependencies(dependencyAnalyzer);
         deps.contribute();
         deps.contributeStandardExports();
+        if (strict) {
+            BoundCheckInsertion.contributeDependencies(dependencyAnalyzer);
+        }
 
         var reflectionSuppliers = new ArrayList<ReflectionSupplier>();
         for (var supplier : ServiceLoader.load(ReflectionSupplier.class, dependencyAnalyzer.getClassLoader())) {
@@ -247,6 +246,9 @@ public class WasmGCTarget implements TeaVMTarget, TeaVMWasmGCHost {
 
     @Override
     public void beforeOptimizations(Program program, MethodReader method) {
+        if (strict) {
+            boundCheckInsertion.transformProgram(program, method.getReference());
+        }
     }
 
     @Override

@@ -746,6 +746,41 @@ public class VMTest {
         assertTrue(caught, "Exception was not caught (lower bound)");
     }
 
+    @Test
+    public void arrayIndexOutOfBoundsDeliveredToHandler() {
+        var array = new int[2];
+        var handled = false;
+        try {
+            array[arrayIndex(2)] = 1;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            // A virtual method that the test harness itself does not call,
+            // so that only the type of the caught exception makes it reachable
+            e.getLocalizedMessage();
+            handled = true;
+        }
+        assertTrue(handled);
+    }
+
+    @Test
+    public void arrayIndexOutOfBoundsPropagatesToCaller() {
+        var handled = false;
+        try {
+            storeAt(new int[2], arrayIndex(2));
+        } catch (IndexOutOfBoundsException e) {
+            e.getLocalizedMessage();
+            handled = true;
+        }
+        assertTrue(handled);
+    }
+
+    private static int arrayIndex(int value) {
+        return value;
+    }
+
+    private static void storeAt(int[] array, int index) {
+        array[index] = 1;
+    }
+
     enum InitInHandler {
         A,
         B
